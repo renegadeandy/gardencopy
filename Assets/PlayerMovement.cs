@@ -54,6 +54,7 @@ public class PlayerMovement : MonoBehaviour
 
         //Apply our gravity
         velocity.y += gravity * Time.deltaTime;
+        Debug.Log("Velocity is:" + velocity.ToString() + "Gravity deduction is:"+ gravity * Time.deltaTime);
         controller.Move(velocity * Time.deltaTime);
     }
 }

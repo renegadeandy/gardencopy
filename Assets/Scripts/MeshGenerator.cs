@@ -313,10 +313,17 @@ public class MeshGenerator : MonoBehaviour
 
     Vector3 CentreFromCoord(Vector3Int coord)
     {
-        // Centre entire map at origin
+        // Centre entire map at origin -- gives 0,0,0 as response for 1 chunk
         if (fixedMapSize)
         {
             Vector3 totalBounds = (Vector3)numChunks * boundsSize;
+            Vector3 bit1 = -totalBounds / 2; //can be deleted
+            Vector3 bit2 = bit1 + (Vector3)coord * boundsSize;//can be deleted
+            Vector3 bit3 = bit2 + Vector3.one * boundsSize / 2;//can be deleted
+            if (bit3.Equals(-totalBounds / 2 + (Vector3)coord * boundsSize + Vector3.one * boundsSize / 2))//can be deleted
+            {//can be deleted
+                Debug.Log("Masta cracka");//can be deleted
+            }//can be deleted
             return -totalBounds / 2 + (Vector3)coord * boundsSize + Vector3.one * boundsSize / 2;
         }
 
