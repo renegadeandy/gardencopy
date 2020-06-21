@@ -21,6 +21,10 @@ public class Chunk : MonoBehaviour {
             DestroyImmediate (gameObject, false);
         }
     }
+    public void hit()
+    {
+        
+    }
 
     // Add components/get references in case lost (references can be lost when working in the editor)
     public void SetUp (Material mat, bool generateCollider) {
