@@ -16,9 +16,10 @@ public class PlayerMovement : MonoBehaviour
     public float speed = 12f;
     private Vector3 velocity;
 
+    
     public float jumpHeight = 1f;
 
-    public float gravity = -29.4f;
+    public float gravity = -9.81f;
     public Transform groundCheck;
     //radius of sphere we will use to check collisions
     public float groundDistance = 0.4f;
@@ -28,12 +29,7 @@ public class PlayerMovement : MonoBehaviour
     //are we grounded or not?
     bool isGrounded;
 
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
-
+ 
     // Update is called once per frame
     void Update()
     {
@@ -47,39 +43,42 @@ public class PlayerMovement : MonoBehaviour
         float x = Input.GetAxis("Horizontal");
         float z = Input.GetAxis("Vertical");
 
-        //left mouse click
-        if (Input.GetMouseButtonUp(0))
-        {
-            Dig();
-        }
-
         //Apply our directional movement z is forward / backward and x is left and right (strafe)
-        Vector3 move = (transform.right * x) + (transform.forward * z);
-        controller.Move(move * speed * Time.deltaTime);
+       Vector3 move = transform.right * x + transform.forward * z;
+        // something wrong in here, causes big circles to on x axis
+       controller.Move(move * speed * Time.deltaTime);
+
+
+        //left mouse click
+        //  if (Input.GetMouseButtonUp(0))
+        //  {
+        //     Dig();
+        // }
+
+        //Gravity
+        velocity.y += gravity * Time.deltaTime;
+        controller.Move(velocity * Time.deltaTime);
 
         //physics calculation to determine how much velocity we need to jump a certain height
-        if (Input.GetButtonDown("Jump") && isGrounded)
+        if (Input.GetButtonDown("Jump"))
         {
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+            controller.Move(velocity * Time.deltaTime);
         }
 
-        //Apply our gravity
-        velocity += Vector3.up * gravity * Time.deltaTime;
-        //gravity still feels slow.
-       //Debug.Log("Velocity is:" + velocity.ToString() + "Gravity deduction is:"+ gravity * Time.deltaTime);
-        controller.Move(velocity * Time.deltaTime);
+      
     }
 
-
+    Vector3 p0, p1, p2;
+    Boolean drawGizmosReady = false;
     void Dig()
     {
         Ray ray = new Ray(myEyes.transform.position, myEyes.transform.forward);
-        Debug.DrawRay(ray.origin, ray.direction * 50f, Color.cyan, 2000f) ;
+        Debug.DrawRay(ray.origin, ray.direction *1000f, Color.cyan, 20f) ;
         RaycastHit hit;
 
-
-        // if(Physics.Raycast(ray, out hit,1000f, LayerMask.NameToLayer("Ground"))) -- this dos not work - debug line shows ray is hitting layer 8 == ground but with the mask, nothing is hit?
-        if (Physics.Raycast(ray,out hit, 50f))
+        int layerMaskGround = 1 << LayerMask.NameToLayer("Ground");
+         if(Physics.Raycast(ray, out hit,1000f, layerMaskGround))
         {
 
             //remove a 'spades' worth of voxels, if pointing at the terrain, and shove them somewhere random nearby.
@@ -94,22 +93,41 @@ public class PlayerMovement : MonoBehaviour
             Mesh mesh = meshCollider.sharedMesh;
             Vector3[] vertices = mesh.vertices;
             int[] triangles = mesh.triangles;
-            Vector3 p0 = vertices[triangles[hit.triangleIndex * 3 + 0]];
-            Vector3 p1 = vertices[triangles[hit.triangleIndex * 3 + 1]];
-            Vector3 p2 = vertices[triangles[hit.triangleIndex * 3 + 2]];
+            drawGizmosReady = false;
+          
+            p0 = vertices[triangles[hit.triangleIndex * 3  + 0]];
+            p1 = vertices[triangles[hit.triangleIndex * 3 + 1]];
+            p2 = vertices[triangles[hit.triangleIndex * 3 + 2]];
             Transform hitTransform = hit.collider.transform;
            
             p0 = hitTransform.TransformPoint(p0);
             p1 = hitTransform.TransformPoint(p1);
             p2 = hitTransform.TransformPoint(p2);
-            Debug.DrawLine(p0, p1,Color.red,1000f);
-            Debug.DrawLine(p1, p2, Color.red, 1000f);
-            Debug.DrawLine(p2, p0, Color.red, 1000f);
+            drawGizmosReady = true;
+           // Debug.DrawLine(p0, p1,Color.red,1000f);
+           // Debug.DrawLine(p1, p2, Color.red, 1000f);
+           // Debug.DrawLine(p2, p0, Color.red, 1000f);
 
 
         }
         else{
             Debug.Log("Hit nothing");
+            drawGizmosReady = false;
+        }
+    }
+
+
+    void OnDrawGizmos()
+    {
+        // Draw a yellow sphere at the transform's position
+
+        if (drawGizmosReady)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawLine(p0, p1);
+            Gizmos.DrawLine(p1, p2);
+            Gizmos.DrawLine(p2, p0);
+            Gizmos.DrawSphere(transform.position, 1);
         }
     }
 }

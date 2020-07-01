@@ -22,7 +22,6 @@ public class NoiseDensity : DensityGenerator {
 
     public override ComputeBuffer Generate (ComputeBuffer pointsBuffer, int numPointsPerAxis, float boundsSize, Vector3 worldBounds, Vector3 centre, Vector3 offset, float spacing) {
         buffersToRelease = new List<ComputeBuffer> ();
-
         // Noise parameters
         var prng = new System.Random (seed);
         var offsets = new Vector3[numOctaves];
@@ -47,6 +46,7 @@ public class NoiseDensity : DensityGenerator {
         densityShader.SetFloat ("weightMultiplier", weightMultiplier);
         densityShader.SetFloat ("hardFloor", hardFloorHeight);
         densityShader.SetFloat ("hardFloorWeight", hardFloorWeight);
+
 
         densityShader.SetVector ("params", shaderParams);
 

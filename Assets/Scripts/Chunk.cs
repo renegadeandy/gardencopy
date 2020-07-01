@@ -10,7 +10,7 @@ public class Chunk : MonoBehaviour {
 
     MeshFilter meshFilter;
     MeshRenderer meshRenderer;
-    MeshCollider meshCollider;
+    public MeshCollider meshCollider;
     bool generateCollider;
 
     public void DestroyOrDisable () {
@@ -21,15 +21,11 @@ public class Chunk : MonoBehaviour {
             DestroyImmediate (gameObject, false);
         }
     }
-    public void hit()
-    {
-        
-    }
 
     // Add components/get references in case lost (references can be lost when working in the editor)
-    public void SetUp (Material mat, bool generateCollider) {
+    public void SetUp (Material mat, bool generateCollider, bool isColliderConvex = false) {
         this.generateCollider = generateCollider;
-
+        
         meshFilter = GetComponent<MeshFilter> ();
         meshRenderer = GetComponent<MeshRenderer> ();
         meshCollider = GetComponent<MeshCollider> ();
@@ -48,7 +44,9 @@ public class Chunk : MonoBehaviour {
         if (meshCollider != null && !generateCollider) {
             DestroyImmediate (meshCollider);
         }
-
+        if(meshCollider != null) {
+            meshCollider.convex = isColliderConvex;
+        }
         mesh = meshFilter.sharedMesh;
         if (mesh == null) {
             mesh = new Mesh ();
