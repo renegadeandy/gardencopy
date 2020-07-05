@@ -5,7 +5,7 @@ using UnityEditor;
 using System.Linq;
 //using static MainMeshHolder;
 using static MainChunkHolder;
-
+using System;
 
 public class MouseLook : MonoBehaviour
 {
@@ -15,19 +15,19 @@ public class MouseLook : MonoBehaviour
     public float sensitivity = 50;
     public int radius = 10;
 
-
+    private int groundLayerMask;
     public float mouseSensitivity = 300f;
     public Camera myEyes;
     public Transform playerBody;
 
-    public Terrain terrain;
-    private TerrainData td;
+    private float trowelDepth = -0.00025f;
+    private float groundLevel = 0.5f;
     private float xRotation = 0f;
     // Start is called before the first frame update = test update
     void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
-        td = terrain.terrainData;
+        groundLayerMask = LayerMask.NameToLayer("Ground");
     }
 
 
@@ -67,31 +67,82 @@ public class MouseLook : MonoBehaviour
         
 
         RaycastHit hit;
-        if (Input.GetMouseButton(0))
+        TerrainData td = null;
+       
+        if (Input.GetMouseButtonDown(0))
         {
+            int layerMask = 1 << groundLayerMask;
             Ray ray = new Ray(transform.position, forward);
-            if (Physics.Raycast(ray, out hit, 50f))
+            if (Physics.Raycast(ray, out hit, 50f,layerMask))
             {
-                float relativeHitTerX = (hit.point.x - terrain.transform.position.x) / td.size.x;
-                float relativeHitTerZ = (hit.point.z - terrain.transform.position.z) / td.size.z;
+                Terrain piece = (Terrain)hit.collider.GetComponent<Terrain>();
+                 td = piece.terrainData;
+             
+
+                //it looks like the orientation is wrong - top left goes bottom right!? maybe not -- as the X of the player decreases, the Z of the detected hit reduces instead of the X? Why?
+                float relativeHitTerX = (hit.point.x - piece.transform.position.x) / td.size.x;
+                float relativeHitTerZ = (hit.point.z - piece.transform.position.z) / td.size.z;
 
                 float relativeTerCoordX = td.heightmapResolution * relativeHitTerX;
                 float relativeTerCoordZ = td.heightmapResolution * relativeHitTerZ;
-
+               
                 int hitPointTerX = Mathf.FloorToInt(relativeTerCoordX);
                 int hitPointTerZ = Mathf.FloorToInt(relativeTerCoordZ);
 
-                //can we find just the area around the ray instead of updating the 513 x 513 resolution height map?!
+        
                 float[,] heights = td.GetHeights(0, 0, td.heightmapResolution, td.heightmapResolution);
-                Debug.Log("Resolution is:" + td.heightmapResolution+" array is:"+heights.Length);
-                heights[hitPointTerZ, hitPointTerX] = heights[hitPointTerZ, hitPointTerX] * 0.90f;
+
+                float[,] newHeights = trowelDig(heights, hitPointTerZ, hitPointTerX);
+                
+                
                 td.SetHeightsDelayLOD(0, 0, heights);
+                
             }
         }
         if (Input.GetMouseButtonUp(0))
         {
-            td.SyncHeightmap();
+            if (td != null)
+            {
+                td.SyncHeightmap();
+             
+            }
         }
+    }
+
+    //make this work neater when it hits boundaries of terrain (between terrain pieces and outer edges of terrain :) 
+    private float[,] trowelDig(float[,] heights, int centerPointZ, int centerPointX)
+    {
+        //reduce area 3x3
+        for(int i = centerPointX -2;i <= centerPointX+2; i++)
+        {
+            for(int p = centerPointZ-2; p<= centerPointZ + 2; p++)
+            {
+
+                if (i == centerPointX && p == centerPointZ)
+                {
+                    heights[centerPointZ, centerPointX] = heights[centerPointZ, centerPointX] + trowelDepth;
+                }
+                else
+                {
+                    heights[centerPointZ, centerPointX] = heights[centerPointZ, centerPointX] + (trowelDepth / 2);
+                }
+            }
+         
+        }
+
+        
+        //Debug.Log("Hit point height before adjusting is:" + heights[centerPointZ, centerPointX]);
+        //if (Math.Abs(heights[centerPointZ, centerPointX] - 0.5f) < 0.005f)
+       // {
+        //    heights[centerPointZ, centerPointX] = heights[centerPointZ, centerPointX] + trowelDepth;
+       //     Debug.Log("Terrain is close to ground level - setting to trowl depth:" + trowelDepth + " we are now at height:" + heights[centerPointZ, centerPointX]);
+       // }
+       // else
+      //  {
+       //     heights[centerPointZ, centerPointX] = heights[centerPointZ, centerPointX] + trowelDepth;
+       //     Debug.Log("Terrain set to:" + heights[centerPointZ, centerPointX]);
+      //  }
+        return heights;
     }
 
 }
