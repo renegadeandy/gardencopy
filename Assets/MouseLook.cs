@@ -91,9 +91,9 @@ public class MouseLook : MonoBehaviour
                 int hitPointTerZ = Mathf.FloorToInt(relativeTerCoordZ);
 
         
-                float[,] heights = td.GetHeights(0, 0, td.heightmapResolution, td.heightmapResolution);
+               
 
-                trowelDig(heights, hitPointTerZ, hitPointTerX,piece);
+                trowelDig(hitPointTerZ, hitPointTerX,piece);
                 
                 
                
@@ -118,12 +118,13 @@ public class MouseLook : MonoBehaviour
         }
     }
     //make this work neater when it hits boundaries of terrain (between terrain pieces and outer edges of terrain :) 
-    private void trowelDig(float[,] heights, int centerPointZ, int centerPointX,Terrain t)
+    private void trowelDig(int centerPointZ, int centerPointX,Terrain t)
     {
-        this.outputGrid(centerPointZ, centerPointX);
-        Debug.Log("Center point Z is:" + centerPointZ + " Center point X is:" + centerPointX);
 
-       
+        Debug.Log("Center point Z is:" + centerPointZ + " Center point X is:" + centerPointX);
+        this.outputGrid(centerPointZ, centerPointX);
+        float[,] heights = t.terrainData.GetHeights(0, 0, t.terrainData.heightmapResolution, t.terrainData.heightmapResolution);
+
         for(int x = centerPointX -2;x <= centerPointX+2; x++)
         {
             for (int z = centerPointZ - 2; z <= centerPointZ + 2; z++)
@@ -164,7 +165,10 @@ public class MouseLook : MonoBehaviour
                     newXOffset = 65 + x;
                     edgeSplitX = true;
                 }
-                if(z > 0 && z<= 64 && x > 0 && x <= 64)
+
+
+
+                if(z >= 0 && z<= 64 && x >= 0 && x <= 64)
                 {
                     if (z == centerPointX && x == centerPointZ)
                     {
@@ -179,11 +183,43 @@ public class MouseLook : MonoBehaviour
                     t.terrainData.SyncHeightmap();
 
                 }
-                //handle depth where it crosses a terrain boundary
-                //if (edgeSplitZ || edgeSplitX)
-                // {
 
+              
+                //we must also adjust the neighboring tile to stop 'terrain gaps at seams' if our adjustment alters 0 or 64 boundaries, making sure to set the height between 'seams' to be the same
+                if (x == 0 || x == 64)
+                {
+                    
+                    if (x == 0)
+                    {
+                        chunkX = this.getNeighbor(t, "left");
+                        newXOffset = 64;
+                       
+                    }
+                    else
+                    {
+                        chunkX = this.getNeighbor(t, "right");
+                        newXOffset = 0;
+                       
+                    }
+                    edgeSplitX = true;
+                }
+                if (z == 0 || z == 64)
+                {
 
+                    if (z == 0)
+                    {
+                        chunkZ = this.getNeighbor(t, "bottom");
+                        newZOffset = 64;
+                    
+                    }
+                    else
+                    {
+                        chunkZ = this.getNeighbor(t, "top");
+                        newZOffset = 0;
+                       
+                    }
+                    edgeSplitZ = true;
+                }
 
 
                 //Handle the case where just x is on the next terrain section
@@ -197,27 +233,50 @@ public class MouseLook : MonoBehaviour
                         TerrainData td = chunkX.terrainData;
                         float[,] otherHeightsX = td.GetHeights(0, 0, td.heightmapResolution, td.heightmapResolution);
                         Debug.Log("Z offset is:" + z + " new X Offset is:" + newXOffset);
-                        otherHeightsX[z, newXOffset] = this.getNewHeight("slope", otherHeightsX[z, newXOffset]);
+                        int offset = 0;
+                        if(newXOffset == 64)
+                        {
+                            offset = 0;
+                        }
+                        else
+                        {
+                        offset = 64;
+                        }
+                        float heightToSet = heights[z, offset];
+                         otherHeightsX[z, newXOffset] = heightToSet;
                         td.SetHeightsDelayLOD(0, 0, otherHeightsX);
                         td.SyncHeightmap();
+                        // chunkX.SetNeighbors(chunkX.leftNeighbor, chunkX.topNeighbor, chunkX.rightNeighbor, chunkX.bottomNeighbor);
                     }
-                    //Handle the case where just z is on the next terrain section
-                    else if (edgeSplitZ && !edgeSplitX)
+                //Handle the case where just z is on the next terrain section
+                  else if (edgeSplitZ && !edgeSplitX)
                     {
                         if (chunkZ == null)
                         {
                             Debug.Log("Terrain Z neighbor doesn't exist - continuing loop");
                             continue;
                         }
-                        TerrainData td = chunkZ.terrainData;
+                    int offset = 0;
+                    if (newZOffset == 64)
+                    {
+                        offset = 0;
+                    }
+                    else
+                    {
+                        offset = 64;
+                    }
+                    Debug.Log("THE NEW NEW Z oFFSET OS:" + newZOffset);
+                    float heightToSet = heights[offset, x];
+                    TerrainData td = chunkZ.terrainData;
                         float[,] otherHeightsZ = td.GetHeights(0, 0, td.heightmapResolution, td.heightmapResolution);
                         Debug.Log("new Z offset is:" + newZOffset + " and X Offset is:" + x);
-                        otherHeightsZ[newZOffset, x] = this.getNewHeight("slope", otherHeightsZ[newZOffset, x]);
+                        otherHeightsZ[newZOffset, x] = heightToSet;
                         td.SetHeightsDelayLOD(0, 0, otherHeightsZ);
                         td.SyncHeightmap();
-                    }
-                    //check where both z and x are on the next chunk
-                    else
+                       // chunkZ.SetNeighbors(chunkZ.leftNeighbor, chunkZ.topNeighbor, chunkZ.rightNeighbor, chunkZ.bottomNeighbor);
+                }
+                //check where both z and x are on the next chunk
+                else if(edgeSplitZ && edgeSplitX)
                     {
                         if (chunkZ == null || chunkX == null)
                         {
@@ -225,50 +284,56 @@ public class MouseLook : MonoBehaviour
                             continue;
                         }
                         TerrainData td = chunkZ.terrainData;
-                        float[,] otherHeightsZ = td.GetHeights(0, 0, td.heightmapResolution, td.heightmapResolution);
-                        otherHeightsZ[newZOffset, x] = this.getNewHeight("slope", otherHeightsZ[newZOffset, x]); 
-                        td.SetHeightsDelayLOD(0, 0, otherHeightsZ);
-                        TerrainData td2 = chunkX.terrainData;
-                        float[,] otherHeightsX = td2.GetHeights(0, 0, td2.heightmapResolution, td2.heightmapResolution);
-                        otherHeightsX[z, newXOffset] = this.getNewHeight("slope", otherHeightsX[z, newXOffset]);
-                        td2.SetHeightsDelayLOD(0, 0, otherHeightsX);
-                        td.SyncHeightmap();
+                    int zoffset = 0;
+                    if (newZOffset == 64)
+                    {
+                        zoffset = 0;
                     }
-              //  }
-                //all part of the same terrain piece
-               // else
-               // {
+                    else
+                    {
+                        zoffset = 64;
+                    }
+                    int xoffset = 0;
+                    if (newXOffset == 64)
+                    {
+                        xoffset = 0;
+                    }
+                    else
+                    {
+                        xoffset = 64;
+                    }
+                    float heightToSet = heights[zoffset, xoffset];
+                    float[,] otherHeightsZ = td.GetHeights(0, 0, td.heightmapResolution, td.heightmapResolution);
+                    otherHeightsZ[newZOffset, newZOffset] = heightToSet;
+                        td.SetHeightsDelayLOD(0, 0, otherHeightsZ);
+                        td.SyncHeightmap();
+                   
+                   
+                    TerrainData td2 = chunkX.terrainData;
+                        float[,] otherHeightsX = td2.GetHeights(0, 0, td2.heightmapResolution, td2.heightmapResolution);
+                    otherHeightsX[newXOffset, newXOffset] = heightToSet;
+                        td2.SetHeightsDelayLOD(0, 0, otherHeightsX);
+                        td2.SyncHeightmap();
+                     }
 
-                    //center point
-                  
-              //  }
+                //CAN we now tidy bottom points?
+
+                
             }
         }
-
-
-        //Debug.Log("Hit point height before adjusting is:" + heights[centerPointZ, centerPointX]);
-        //if (Math.Abs(heights[centerPointZ, centerPointX] - 0.5f) < 0.005f)
-        // {
-        //    heights[centerPointZ, centerPointX] = heights[centerPointZ, centerPointX] + trowelDepth;
-        //     Debug.Log("Terrain is close to ground level - setting to trowl depth:" + trowelDepth + " we are now at height:" + heights[centerPointZ, centerPointX]);
-        // }
-        // else
-        //  {
-        //     heights[centerPointZ, centerPointX] = heights[centerPointZ, centerPointX] + trowelDepth;
-        //     Debug.Log("Terrain set to:" + heights[centerPointZ, centerPointX]);
-        //  }
-       
-
-        
     }
 
     private float slopeVal;
     private float bottomVal;
     private Boolean setSlope = false;
     private Boolean setBottom = false;
-    private float getNewHeight(String area,float original)
+    private float getNewHeight(String area,float original,float? adjoining =null)
     {
 
+        if (adjoining!=null)
+        {
+            return (float)adjoining;
+        }
        
         if (area.Equals("slope"))
         {
@@ -278,6 +343,7 @@ public class MouseLook : MonoBehaviour
             }
             else
             {
+
                 slopeVal = original + (trowelDepth / 2);
                 setSlope = true;
                 return slopeVal;
