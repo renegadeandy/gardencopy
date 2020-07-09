@@ -275,7 +275,7 @@ public class MouseLook : MonoBehaviour
                         td.SyncHeightmap();
                        // chunkZ.SetNeighbors(chunkZ.leftNeighbor, chunkZ.topNeighbor, chunkZ.rightNeighbor, chunkZ.bottomNeighbor);
                 }
-                //check where both z and x are on the next chunk
+                //check where both z and x are on the next chunk, we have to also check for a diagonal terrain and alter that too
                 else if(edgeSplitZ && edgeSplitX)
                     {
                         if (chunkZ == null || chunkX == null)
@@ -301,20 +301,62 @@ public class MouseLook : MonoBehaviour
                     else
                     {
                         xoffset = 64;
+                    
                     }
+
+                    //top
                     float heightToSet = heights[zoffset, xoffset];
                     float[,] otherHeightsZ = td.GetHeights(0, 0, td.heightmapResolution, td.heightmapResolution);
                     otherHeightsZ[newZOffset, newZOffset] = heightToSet;
                         td.SetHeightsDelayLOD(0, 0, otherHeightsZ);
                         td.SyncHeightmap();
                    
-                   
+                   //left
                     TerrainData td2 = chunkX.terrainData;
                         float[,] otherHeightsX = td2.GetHeights(0, 0, td2.heightmapResolution, td2.heightmapResolution);
                     otherHeightsX[newXOffset, newXOffset] = heightToSet;
                         td2.SetHeightsDelayLOD(0, 0, otherHeightsX);
                         td2.SyncHeightmap();
-                     }
+
+
+                    //diagonal
+
+                    //which diagonal?
+                    if (chunkX.topNeighbor != null || chunkX.bottomNeighbor!=null)
+                    {
+                        TerrainData td3;
+                        int offsetX;
+                        int offsetZ;
+                    if(z <= 0)
+                    {
+                        td3 = chunkX.bottomNeighbor.terrainData;
+                        offsetX = 0+x*-1;
+                        offsetZ =64+ z;
+                    }
+                    else
+                    {
+                        td3 = chunkX.topNeighbor.terrainData;
+                            offsetX = 64 +x;
+                           
+                            offsetZ = 0+z-64;
+                    }
+                   
+                        float[,] diagonalHeights = td3.GetHeights(0, 0, td3.heightmapResolution, td3.heightmapResolution);
+                        if (x < 0 || x > 0)
+                        {
+                            heightToSet = this.getNewHeight("slope", diagonalHeights[offsetZ, offsetX]);
+                        }
+                        else
+                        {
+                            heightToSet = this.getNewHeight("bottomPoint",diagonalHeights[offsetZ, offsetX]);
+                        }
+                        diagonalHeights[offsetZ, offsetX] = heightToSet;
+                        td3.SetHeightsDelayLOD(0, 0, diagonalHeights);
+                        td3.SyncHeightmap();
+                    }
+                }
+
+                   
 
                 //CAN we now tidy bottom points?
 
@@ -327,14 +369,9 @@ public class MouseLook : MonoBehaviour
     private float bottomVal;
     private Boolean setSlope = false;
     private Boolean setBottom = false;
-    private float getNewHeight(String area,float original,float? adjoining =null)
+    private float getNewHeight(String area,float original)
     {
 
-        if (adjoining!=null)
-        {
-            return (float)adjoining;
-        }
-       
         if (area.Equals("slope"))
         {
             if (setSlope)
