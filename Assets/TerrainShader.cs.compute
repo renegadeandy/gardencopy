@@ -1,0 +1,19 @@
+﻿#pragma kernel CSMain
+
+half height;
+//half2 offset;
+RWTexture2D<half4> heightmap;
+Texture2D<half4> brush;
+
+[numthreads(32, 32, 1)]
+void CSMain(uint2 id : SV_DispatchThreadID)
+{
+    for (int i = 0; i < 2; i++)
+    {
+        for (int j = 0; j < 2; j++)
+        {
+            half4 new_heightmap = lerp(heightmap[int2(id.x + (32 * i), id.y + (32 * j))], height, brush[int2(id.x + (32 * i), id.y + (32 * j))]);
+            heightmap[int2(id.x + (32 * i), id.y + (32 * j))] = clamp(new_heightmap, 0, .5);    // 0.5, because that's the range devs decided to treat the texture internally. Bugs occur beyond 0.5.
+        }
+    }
+}
